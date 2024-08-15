@@ -1,13 +1,7 @@
 # -*- coding: utf-8 -*-
-"""topsis_gpu_analysis.py
-
-Author: Mandeep Kumar
-Email: themandeepkumar@gmail.com
-
-**TOPSIS Analysis of GPU Compute Instances for HPC and AI in the Cloud**
-
-This Jupyter notebook contains the implementation of the Technique for Order of Preference by Similarity to Ideal Solution (TOPSIS), a Multi Criteria Decision Making (MCDM) method for evaluating and ranking GPU compute instances for HPC and AI from various cloud providers. The notebook guides you through the process of data preparation, criteria weighting, and application of the TOPSIS algorithm. Additionally, it includes sensitivity analysis to explore the impact of varying criteria weights, bootstrap analysis to assess the stability of the rankings, and non-parametric tests to evaluate the consistency of the results. The notebook is designed to be a comprehensive tool for researchers and practitioners looking to make informed decisions about GPU compute instance selection for HPC and AI in cloud computing environments.
-"""
+# TOPSIS Analysis of GPU Compute Instances for HPC and AI in the Cloud
+# Author: Mandeep Kumar
+# Email: themandeepkumar@gmail.com
 
 import numpy as np
 import pandas as pd
@@ -19,8 +13,8 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_colwidth', None)
 
-# Define the TOPSIS function
-def topsis(raw_data, weights, benefit_categories):
+# Define the TOPSIS function with epsilon to avoid division by zero
+def topsis(raw_data, weights, benefit_categories, epsilon=1e-10):
     m, n = raw_data.shape
     # Normalize the raw data
     divisors = np.sqrt(np.sum(raw_data ** 2, axis=0))
@@ -44,25 +38,9 @@ def topsis(raw_data, weights, benefit_categories):
     dist_to_ideal = np.sqrt(np.sum((weighted_data - ideal_solution) ** 2, axis=1))
     dist_to_negative_ideal = np.sqrt(np.sum((weighted_data - negative_ideal_solution) ** 2, axis=1))
 
-    # Calculate TOPSIS scores
-    scores = dist_to_negative_ideal / (dist_to_ideal + dist_to_negative_ideal)
+    # Calculate TOPSIS scores with epsilon to prevent division by zero
+    scores = dist_to_negative_ideal / (dist_to_ideal + dist_to_negative_ideal + epsilon)
     return scores
-
-"""**Identification of Criteria and Weights**
-
-The initial phase of the TOPSIS methodology involves determining and defining the criteria.
-
-**Requirements:**
-
-For this analysis, the following information is consistently provided:
-
-The scores for each alternative across various categories.
-
-*   The scores for each alternative across various categories.
-*   The importance or weights assigned to each category.
-
-Note: Categories may be classified as either beneficial, where maximizing their contribution is desired, or as cost categories, where minimizing their impact is preferred.
-"""
 
 # Identification of Criteria and Weights
 categories = np.array(["Number of GPU (G)", "Number of Physical CPU Cores (C)", "GPU Memory (GM)", "CPU Memory (CM)", "GPU FP64 Performance (GP)", "On-Demand Hourly Cost (HC)"])
@@ -106,12 +84,6 @@ display(raw_data_df)
 print("Initial Weights:")
 display(weights_df)
 
-"""**Normalization of Data**
-
-Normalization is essential to bring all criteria to a common scale, ensuring that each criterion contributes proportionally to the decision-making process. This step involves transforming the raw data for each criterion into a dimensionless value between 0 and 1. Various normalization techniques, such as min-max normalization or z-score normalization, can be applied depending on the nature of the data.
-
-"""
-
 # Normalize the raw data
 m, n = raw_data.shape
 divisors = np.empty(n)
@@ -128,8 +100,6 @@ normalized_data_df = pd.DataFrame(data=normalized_data, index=alternatives, colu
 print("Normalized Data:")
 display(normalized_data_df)
 
-"""The weights are normalized to ensure that they sum up to 1."""
-
 # Weighted normalized decision matrix
 weighted_data = normalized_data * weights
 
@@ -137,11 +107,6 @@ weighted_data_df = pd.DataFrame(data=weighted_data, index=alternatives, columns=
 
 print("Weighted Normalized Data:")
 display(weighted_data_df)
-
-"""**Determination of Ideal Solution and Negative Ideal Solution**
-
-Ideal Solution and Negative Ideal Solution are key concepts used to evaluate alternatives based on their distance from these ideal points.
-"""
 
 # Determine the Ideal and Negative Ideal Solutions
 a_pos = np.zeros(n)
@@ -162,11 +127,6 @@ ideal_df = pd.DataFrame(data=[a_pos, a_neg], index=["Ideal Solution", "Negative 
 print("Ideal and Negative Ideal Solutions:")
 display(ideal_df)
 
-"""**Calculation of Similarity Scores**
-
-The core of TOPSIS lies in the calculation of similarity scores for each alternative with respect to the ideal and negative ideal solutions. The ideal solution represents the maximum (or minimum, depending on the nature of the criterion) values for each criterion, while the negative ideal solution represents the minimum (or maximum) values.
-"""
-
 # Calculate the similarity scores
 sp = np.zeros(m)
 sn = np.zeros(m)
@@ -183,21 +143,11 @@ similarity_scores_df = pd.DataFrame(data=zip(sp, sn), index=alternatives, column
 print("Similarity Scores:")
 display(similarity_scores_df)
 
-"""**Ranking of Alternatives**
-
-The final step involves ranking the alternatives based on their relative closeness to the ideal solution and distance from the anti-ideal solution.
-"""
-
 # Ranking of alternatives
 initial_ranks = rankdata(-cs)
 ranking_df = pd.DataFrame(data=zip(cs, initial_ranks), index=alternatives, columns=["TOPSIS Score", "Initial Rank"]).sort_values(by="Initial Rank")
 print("Initial Ranking of Alternatives (Descending Order):")
 display(ranking_df)
-
-"""**Sensitivity Analysis**
-
-Sensitivity analysis in the context of TOPSIS is performed to evaluate the robustness of the rankings by examining how variations in the criteria weights affect the results. This analysis ensures that the final rankings are reliable and not overly sensitive to changes in the assigned weights.
-"""
 
 # Sensitivity Analysis: Varying weights for each criterion
 def sensitivity_analysis(raw_data, initial_weights, benefit_categories, alternatives):
@@ -233,11 +183,6 @@ sensitivity_df = sensitivity_analysis(raw_data, initial_weights, benefit_categor
 print("Sensitivity Analysis:")
 display(sensitivity_df)
 
-"""**Bootstrapping Analysis**
-
-Bootstrapping analysis is employed to evaluate the variability and stability of TOPSIS rankings by generating multiple resamples of the decision matrix and recalculating the TOPSIS scores for each resample. This approach helps in understanding the distribution of rankings and assessing the robustness of the decision outcomes.
-"""
-
 # Bootstrapping Analysis: Generating bootstrap samples and calculating TOPSIS scores
 def bootstrap_analysis(raw_data, initial_weights, benefit_categories, num_samples=1000):
     m, n = raw_data.shape
@@ -268,11 +213,6 @@ bootstrap_df = pd.DataFrame({
 
 print("Bootstrap Analysis Results (Descending Order):")
 display(bootstrap_df)
-
-"""**Non-Parametric Tests**
-
-Non-parametric tests are utilized to evaluate the statistical significance of the differences in rankings obtained from the bootstrapping analysis. These tests do not assume a specific distribution for the data and are particularly useful for analyzing ordinal rankings.
-"""
 
 # Non-parametric Tests: Friedman Test
 def friedman_test(bootstrap_ranks):
